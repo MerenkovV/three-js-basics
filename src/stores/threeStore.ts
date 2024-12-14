@@ -65,14 +65,10 @@ class ThreeStore {
     }
 
     this.targetGroup.rotation.x += 0.01;
-    // this.targetGroup.rotation.y += 0.01;
+    this.targetGroup.rotation.y += 0.01;
   }
 
   public setMesh() {
-    // const cubeGeometry = new BoxGeometry(1, 1, 1);
-
-    // const cubeMaterial = new MeshBasicMaterial({ color: 0x00ff00 });
-
     const points = [];
 
     for (let index = 0; index < 15; index++) {
@@ -84,8 +80,6 @@ class ThreeStore {
     const lineGeometry = new BufferGeometry().setFromPoints(points);
 
     const lineMaterial = new LineBasicMaterial({ color: 0x0000ff });
-
-    // this.targetMesh = new Mesh(lineGeometry, lineMaterial);
 
     const line = new Line(lineGeometry, lineMaterial);
 
