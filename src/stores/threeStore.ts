@@ -1,14 +1,22 @@
 import { makeAutoObservable } from "mobx";
 import {
-  BufferGeometry,
+  AmbientLight,
   Group,
-  Line,
-  LineBasicMaterial,
+  Mesh,
+  MeshPhongMaterial,
   PerspectiveCamera,
+  PlaneGeometry,
   Scene,
-  Vector3,
+  TextureLoader,
+  Vector2,
   WebGLRenderer,
 } from "three";
+
+import textureImage from "../assets/earthMap.jpg";
+
+import { OrbitControls } from "three/examples/jsm/Addons.js";
+import DisksWithArcModel from "./models/DisksWithArcModel";
+import { Group as TweenGroup } from "@tweenjs/tween.js";
 
 class ThreeStore {
   public rendered = false;
@@ -22,9 +30,21 @@ class ThreeStore {
     500
   );
 
+  public light = new AmbientLight();
+
   public renderer = new WebGLRenderer();
 
   public targetGroup: Group = new Group();
+
+  private controls = new OrbitControls(this.camera, this.renderer.domElement);
+
+  private view: HTMLElement | null = null;
+
+  private tweenGroup: TweenGroup | null = null;
+
+  private arc: DisksWithArcModel | null = null;
+  private radius = 1;
+  private isScaleUp = true;
 
   constructor() {
     makeAutoObservable(this, undefined, { autoBind: true });
@@ -33,11 +53,15 @@ class ThreeStore {
   public initThree(view: HTMLDivElement) {
     this.rendered = true;
 
+    this.view = view;
+
     this.renderer.setSize(window.innerWidth, window.innerHeight);
 
-    this.camera.position.set(0, 0, 100);
+    this.camera.position.set(0, 0, 200);
 
     this.camera.lookAt(0, 0, 0);
+
+    this.scene.add(this.light);
 
     view.appendChild(this.renderer.domElement);
 
@@ -54,38 +78,81 @@ class ThreeStore {
 
   private renderThree() {
     this.renderer.render(this.scene, this.camera);
-    this.rotateGroup();
+
+    this.controls.update();
+    //this.scaleCircle();
+
+    if (this.tweenGroup) {
+      this.tweenGroup.update();
+    }
 
     requestAnimationFrame(this.renderThree);
   }
 
-  private rotateGroup() {
-    if (!this.targetGroup) {
+  private scaleCircle() {
+    if (!this.arc) {
       return;
     }
 
-    this.targetGroup.rotation.x += 0.01;
-    this.targetGroup.rotation.y += 0.01;
+    if (this.isScaleUp) {
+      this.radius += 0.01;
+      this.arc.startCircle?.setRadius(this.radius);
+      this.arc.endCircle?.setRadius(this.radius * 1.5);
+
+      if (this.radius >= 5) {
+        this.isScaleUp = false;
+      }
+    } else {
+      this.radius -= 0.01;
+      this.arc.startCircle?.setRadius(this.radius);
+      this.arc.endCircle?.setRadius(this.radius * 1.5);
+
+      if (this.radius <= 2) {
+        this.isScaleUp = true;
+      }
+    }
   }
 
   public setMesh() {
-    const points = [];
+    const planeGeometry = new PlaneGeometry(360, 180);
 
-    for (let index = 0; index < 15; index++) {
-      const pos = new Array(3).fill(Math.random() * 20);
+    //const sphereGeometry = new SphereGeometry(90, 32, 32);
 
-      points.push(new Vector3(pos[0] - index * 5, pos[1], pos[2]));
-    }
+    const texture = new TextureLoader().load(textureImage);
 
-    const lineGeometry = new BufferGeometry().setFromPoints(points);
+    const phongMaterial = new MeshPhongMaterial({
+      map: texture,
+    });
 
-    const lineMaterial = new LineBasicMaterial({ color: 0x0000ff });
+    const earthMesh = new Mesh(planeGeometry, phongMaterial);
 
-    const line = new Line(lineGeometry, lineMaterial);
+    this.targetGroup?.add(earthMesh);
 
-    this.targetGroup?.add(line);
+    this.arc = new DisksWithArcModel(
+      this.scene,
+      new Vector2(-84.971345, 56.454738),
+      {
+        fill: "blue",
+        stroke: "white",
+      },
+      new Vector2(78.971345, 18.454738),
+      {
+        fill: "rgba(157, 23, 23, 0.17)",
+        stroke: "black",
+      }
+    );
 
     this.scene.add(this.targetGroup);
+  }
+
+  public deInitThree() {
+    this.scene.clear();
+    this.renderer.clear();
+    this.view?.children[0].remove();
+
+    this.targetGroup.clear();
+
+    this.rendered = false;
   }
 }
 
